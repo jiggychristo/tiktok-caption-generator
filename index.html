@@ -33,7 +33,7 @@
     .product-list { display: flex; flex-direction: column; gap: 8px; }
     .product-row { display: flex; gap: 8px; align-items: flex-start; }
     .product-row-inputs { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-    .product-row-inputs input { width: 100%; padding: 8px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+    .product-row-inputs input, .product-row-inputs select { width: 100%; padding: 8px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
     .check-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; margin-top: 8px; }
     .check-label { font-size: 0.75rem; color: var(--subtext); }
     .save-check { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
@@ -52,6 +52,7 @@
     .saved-item-header { display: flex; justify-content: space-between; align-items: center; }
     .saved-item-name { font-size: 0.9rem; font-weight: bold; }
     .saved-item-meta { font-size: 0.75rem; color: var(--subtext); margin-top: 2px; }
+    .saved-item-category { display: inline-block; font-size: 0.7rem; background: var(--accent); color: white; border-radius: 6px; padding: 2px 8px; margin-top: 4px; }
     .delete-btn { width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; background: var(--danger); }
     .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: var(--accent); }
     .green-btn { background: var(--green) !important; }
@@ -67,6 +68,19 @@
     .key-save-btn { width: auto; padding: 10px 14px; margin: 0; font-size: 0.85rem; flex-shrink: 0; }
     .analyzed-label { font-size: 0.75rem; color: var(--subtext); margin-bottom: 4px; margin-top: 10px; }
     .analyzed-preview { background: var(--input); border-radius: 8px; padding: 12px; font-size: 0.9rem; line-height: 1.6; color: var(--text); }
+    .category-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .chip { padding: 8px 14px; border-radius: 20px; border: none; font-size: 0.85rem; cursor: pointer; background: var(--input); color: var(--subtext); width: auto; margin: 0; font-weight: normal; }
+    .chip.selected { background: var(--accent); color: white; font-weight: bold; }
+    .chip.custom-add { border: 1px dashed var(--border); background: transparent; }
+    .selectable-product { display: flex; align-items: center; gap: 10px; background: var(--input); border-radius: 8px; padding: 10px; margin-bottom: 6px; cursor: pointer; }
+    .selectable-product input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+    .selectable-product-info { flex: 1; }
+    .selectable-product-name { font-size: 0.9rem; font-weight: bold; }
+    .selectable-product-meta { font-size: 0.75rem; color: var(--subtext); margin-top: 2px; }
+    select { background: var(--input); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px; width: 100%; font-size: 0.9rem; }
+    .custom-cat-row { display: flex; gap: 8px; margin-top: 8px; }
+    .custom-cat-row input { flex: 1; }
+    .custom-cat-row button { width: auto; padding: 10px 14px; margin: 0; font-size: 0.85rem; }
   </style>
 </head>
 <body>
@@ -124,11 +138,28 @@
 
   <!-- SAVED -->
   <div id="tab-saved" style="display:none">
-    <div class="card">
-      <div class="section-title">Saved Products</div>
-      <div id="savedList"><div class="status">Loading...</div></div>
-      <button class="green-btn" onclick="generateFromSaved()" style="margin-top:8px">Generate Batch from Saved</button>
+
+    <!-- Step 1: Pick category -->
+    <div class="card" id="categoryPickCard">
+      <div class="section-title">Pick a Category</div>
+      <div class="category-chips" id="categoryChips">
+        <div class="status">Loading...</div>
+      </div>
+      <div class="custom-cat-row">
+        <input class="text-input" id="customCatInput" placeholder="New category name..." />
+        <button onclick="addCustomCategory()">Add</button>
+      </div>
     </div>
+
+    <!-- Step 2: Select products -->
+    <div class="card" id="productPickCard" style="display:none">
+      <div class="section-title" id="productPickTitle">Products</div>
+      <div id="selectableProductList"></div>
+      <button class="green-btn" onclick="generateFromSelected()" style="margin-top:8px">Generate Captions</button>
+      <button onclick="manageCategory()" style="background:var(--danger); margin-top:8px;">Manage / Delete Products</button>
+    </div>
+
+    <!-- Step 3: Captions -->
     <div class="card" id="savedCaptionSection" style="display:none">
       <div class="counter" id="savedCounter"></div>
       <div class="caption-card">
@@ -142,6 +173,14 @@
       </div>
       <div class="swipe-hint">swipe left / right to navigate</div>
     </div>
+
+    <!-- Manage mode -->
+    <div class="card" id="manageCard" style="display:none">
+      <div class="section-title" id="manageTitle">Manage Products</div>
+      <div id="manageList"></div>
+      <button onclick="closeManage()" style="background:var(--input); margin-top:8px; color:var(--text);">Done</button>
+    </div>
+
   </div>
 
   <!-- TEMPLATES -->
@@ -192,9 +231,7 @@
     });
     const db = firebase.firestore();
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
     const defaultTemplates = [
       "when the [brand/company] is [closing/rebranding/cancelled] so the [product] is [dirt cheap/on ultra discount] [today/rn]",
@@ -203,6 +240,8 @@
       "woke up shocked at how cheap the [product] is [today/rn]",
       "did anyone else get a coupon for [product]? bc i am shocked at how cheap it is [today/rn]"
     ];
+
+    const presetCategories = ["Skincare", "Supplements", "Hair", "Makeup", "Wellness", "Body Care", "Fragrance", "Tools"];
 
     const variations = {
       "[closing/rebranding/cancelled]": ["closing", "rebranding", "cancelled", "shutting down"],
@@ -218,6 +257,8 @@
     let activeTemplates = [];
     let currentTheme = "dark";
     let analyzedTemplate = "";
+    let selectedCategory = "";
+    let customCategories = [];
 
     // THEME
     function toggleTheme() {
@@ -237,7 +278,7 @@
         document.getElementById(`tab-${t}`).style.display = t === tab ? "block" : "none";
         document.querySelectorAll(".tab")[i].classList.toggle("active", t === tab);
       });
-      if (tab === "saved") renderSavedList();
+      if (tab === "saved") renderCategoryChips();
       if (tab === "templates") renderTemplateList();
     }
 
@@ -247,6 +288,7 @@
         const doc = await db.collection("config").doc("settings").get();
         if (doc.exists && doc.data().anthropicKey) {
           document.getElementById("apiKey").value = doc.data().anthropicKey;
+          if (doc.data().customCategories) customCategories = doc.data().customCategories;
         }
       } catch(e) {}
       updateExtractBtn();
@@ -266,6 +308,168 @@
         status.textContent = "Failed to save.";
       }
     }
+
+    // CATEGORIES
+    async function loadCustomCategories() {
+      const doc = await db.collection("config").doc("settings").get();
+      if (doc.exists && doc.data().customCategories) customCategories = doc.data().customCategories;
+    }
+
+    async function addCustomCategory() {
+      const val = document.getElementById("customCatInput").value.trim();
+      if (!val) return;
+      if ([...presetCategories, ...customCategories].map(c => c.toLowerCase()).includes(val.toLowerCase())) {
+        document.getElementById("customCatInput").value = "";
+        return;
+      }
+      customCategories.push(val);
+      await db.collection("config").doc("settings").set({ customCategories }, { merge: true });
+      document.getElementById("customCatInput").value = "";
+      renderCategoryChips();
+    }
+
+    async function renderCategoryChips() {
+      await loadCustomCategories();
+      const allCats = [...presetCategories, ...customCategories];
+      const chips = document.getElementById("categoryChips");
+      chips.innerHTML = "";
+      allCats.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.className = "chip" + (cat === selectedCategory ? " selected" : "");
+        btn.textContent = cat;
+        btn.onclick = () => selectCategory(cat);
+        chips.appendChild(btn);
+      });
+    }
+
+    async function selectCategory(cat) {
+      selectedCategory = cat;
+      renderCategoryChips();
+      document.getElementById("productPickTitle").textContent = cat + " Products";
+      document.getElementById("productPickCard").style.display = "block";
+      document.getElementById("savedCaptionSection").style.display = "none";
+      document.getElementById("manageCard").style.display = "none";
+      await renderSelectableProducts(cat);
+    }
+
+    async function renderSelectableProducts(cat) {
+      const list = document.getElementById("selectableProductList");
+      list.innerHTML = "<div class='status'>Loading...</div>";
+      const snap = await db.collection("savedProducts").where("category", "==", cat).get();
+      if (snap.empty) {
+        list.innerHTML = "<div class='status'>No products in this category yet. Save some from the Generate tab.</div>";
+        return;
+      }
+      list.innerHTML = "";
+      snap.forEach(doc => {
+        const item = doc.data();
+        const div = document.createElement("div");
+        div.className = "selectable-product";
+        div.innerHTML = `
+          <input type="checkbox" id="sel_${doc.id}" checked />
+          <div class="selectable-product-info">
+            <div class="selectable-product-name">${item.product}${item.brand ? " — " + item.brand : ""}</div>
+            <div class="selectable-product-meta">Used ${item.useCount || 0} time${(item.useCount || 0) === 1 ? "" : "s"}${item.notes ? " · " + item.notes : ""}</div>
+          </div>
+        `;
+        div.querySelector("input").dataset.docId = doc.id;
+        list.appendChild(div);
+      });
+    }
+
+    async function generateFromSelected() {
+      const checkboxes = document.querySelectorAll("#selectableProductList input[type='checkbox']:checked");
+      if (checkboxes.length === 0) return;
+      await loadTemplates();
+      savedCaptions = [];
+      savedCaptionMeta = [];
+      const updates = [];
+      for (const cb of checkboxes) {
+        const docId = cb.dataset.docId;
+        const doc = await db.collection("savedProducts").doc(docId).get();
+        const item = doc.data();
+        const { caption, templateIndex } = fillTemplate(item.product, item.brand, item.lastTemplateIndex);
+        savedCaptions.push(caption);
+        savedCaptionMeta.push({ docId, product: item.product, brand: item.brand, lastTemplateIndex: templateIndex });
+        updates.push(db.collection("savedProducts").doc(docId).update({
+          lastTemplateIndex: templateIndex,
+          useCount: (item.useCount || 0) + 1
+        }));
+      }
+      await Promise.all(updates);
+      savedCurrentIndex = 0;
+      showSavedCaption();
+      document.getElementById("savedCaptionSection").style.display = "block";
+    }
+
+    async function manageCategory() {
+      document.getElementById("manageCard").style.display = "block";
+      document.getElementById("manageTitle").textContent = "Manage " + selectedCategory;
+      const list = document.getElementById("manageList");
+      list.innerHTML = "<div class='status'>Loading...</div>";
+      const snap = await db.collection("savedProducts").where("category", "==", selectedCategory).get();
+      if (snap.empty) { list.innerHTML = "<div class='status'>No products.</div>"; return; }
+      list.innerHTML = "";
+      snap.forEach(doc => {
+        const item = doc.data();
+        const div = document.createElement("div");
+        div.className = "saved-item";
+        div.innerHTML = `
+          <div class="saved-item-header">
+            <span class="saved-item-name">${item.product}${item.brand ? " — " + item.brand : ""}</span>
+            <button class="delete-btn" onclick="deleteSaved('${doc.id}')">✕</button>
+          </div>
+          <div class="saved-item-meta">Used ${item.useCount || 0} time${(item.useCount || 0) === 1 ? "" : "s"}</div>
+          <input class="text-input" style="margin-top:8px;font-size:0.8rem;" placeholder="Notes..." value="${item.notes || ""}" onchange="updateNotes('${doc.id}', this.value)" />
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function closeManage() {
+      document.getElementById("manageCard").style.display = "none";
+      renderSelectableProducts(selectedCategory);
+    }
+
+    async function updateNotes(id, notes) {
+      await db.collection("savedProducts").doc(id).update({ notes });
+    }
+
+    async function deleteSaved(id) {
+      await db.collection("savedProducts").doc(id).delete();
+      manageCategory();
+    }
+
+    async function saveProduct(product, brand, category) {
+      const snap = await db.collection("savedProducts").where("product", "==", product).where("brand", "==", brand).get();
+      if (snap.empty) {
+        await db.collection("savedProducts").add({ product, brand, category, lastTemplateIndex: -1, useCount: 0, notes: "" });
+      }
+    }
+
+    function showSavedCaption() {
+      document.getElementById("savedCaptionText").textContent = savedCaptions[savedCurrentIndex];
+      document.getElementById("savedCounter").textContent = `${savedCurrentIndex + 1} of ${savedCaptions.length}`;
+    }
+
+    function copySavedCaption() {
+      navigator.clipboard.writeText(savedCaptions[savedCurrentIndex]);
+      const btn = document.querySelector("#savedCaptionSection .copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => btn.textContent = "Copy", 1500);
+    }
+
+    async function rerollSavedCaption() {
+      await loadTemplates();
+      const meta = savedCaptionMeta[savedCurrentIndex];
+      const { caption, templateIndex } = fillTemplate(meta.product, meta.brand, meta.lastTemplateIndex);
+      savedCaptions[savedCurrentIndex] = caption;
+      savedCaptionMeta[savedCurrentIndex].lastTemplateIndex = templateIndex;
+      showSavedCaption();
+    }
+
+    function nextSavedCaption() { if (savedCurrentIndex < savedCaptions.length - 1) { savedCurrentIndex++; showSavedCaption(); } }
+    function prevSavedCaption() { if (savedCurrentIndex > 0) { savedCurrentIndex--; showSavedCaption(); } }
 
     // TEMPLATES
     async function loadTemplates() {
@@ -310,96 +514,6 @@
       await db.collection("config").doc("templates").set({ list: activeTemplates });
       renderTemplateList();
     }
-
-    // SAVED PRODUCTS
-    async function renderSavedList() {
-      const list = document.getElementById("savedList");
-      list.innerHTML = "<div class='status'>Loading...</div>";
-      try {
-        const snap = await db.collection("savedProducts").get();
-        if (snap.empty) { list.innerHTML = "<div class='status'>No saved products yet.</div>"; return; }
-        list.innerHTML = "";
-        snap.forEach(doc => {
-          const item = doc.data();
-          const div = document.createElement("div");
-          div.className = "saved-item";
-          div.innerHTML = `
-            <div class="saved-item-header">
-              <span class="saved-item-name">${item.product}${item.brand ? " — " + item.brand : ""}</span>
-              <button class="delete-btn" onclick="deleteSaved('${doc.id}')">✕</button>
-            </div>
-            <div class="saved-item-meta">Used ${item.useCount || 0} time${(item.useCount || 0) === 1 ? "" : "s"}</div>
-            <input class="text-input" style="margin-top:8px;font-size:0.8rem;" placeholder="Notes (e.g. only use rebranding angle)" value="${item.notes || ""}" onchange="updateNotes('${doc.id}', this.value)" />
-          `;
-          list.appendChild(div);
-        });
-      } catch(e) {
-        list.innerHTML = "<div class='status error'>Failed to load.</div>";
-      }
-    }
-
-    async function updateNotes(id, notes) {
-      await db.collection("savedProducts").doc(id).update({ notes });
-    }
-
-    async function deleteSaved(id) {
-      await db.collection("savedProducts").doc(id).delete();
-      renderSavedList();
-    }
-
-    async function saveProduct(product, brand) {
-      const snap = await db.collection("savedProducts").where("product", "==", product).where("brand", "==", brand).get();
-      if (snap.empty) {
-        await db.collection("savedProducts").add({ product, brand, lastTemplateIndex: -1, useCount: 0, notes: "" });
-      }
-    }
-
-    async function generateFromSaved() {
-      const snap = await db.collection("savedProducts").get();
-      if (snap.empty) return;
-      await loadTemplates();
-      savedCaptions = [];
-      savedCaptionMeta = [];
-      const updates = [];
-      snap.forEach(doc => {
-        const item = doc.data();
-        const { caption, templateIndex } = fillTemplate(item.product, item.brand, item.lastTemplateIndex);
-        savedCaptions.push(caption);
-        savedCaptionMeta.push({ docId: doc.id, product: item.product, brand: item.brand, lastTemplateIndex: templateIndex });
-        updates.push(db.collection("savedProducts").doc(doc.id).update({
-          lastTemplateIndex: templateIndex,
-          useCount: (item.useCount || 0) + 1
-        }));
-      });
-      await Promise.all(updates);
-      savedCurrentIndex = 0;
-      showSavedCaption();
-      document.getElementById("savedCaptionSection").style.display = "block";
-    }
-
-    function showSavedCaption() {
-      document.getElementById("savedCaptionText").textContent = savedCaptions[savedCurrentIndex];
-      document.getElementById("savedCounter").textContent = `${savedCurrentIndex + 1} of ${savedCaptions.length}`;
-    }
-
-    function copySavedCaption() {
-      navigator.clipboard.writeText(savedCaptions[savedCurrentIndex]);
-      const btn = document.querySelector("#savedCaptionSection .copy-btn");
-      btn.textContent = "Copied!";
-      setTimeout(() => btn.textContent = "Copy", 1500);
-    }
-
-    async function rerollSavedCaption() {
-      await loadTemplates();
-      const meta = savedCaptionMeta[savedCurrentIndex];
-      const { caption, templateIndex } = fillTemplate(meta.product, meta.brand, meta.lastTemplateIndex);
-      savedCaptions[savedCurrentIndex] = caption;
-      savedCaptionMeta[savedCurrentIndex].lastTemplateIndex = templateIndex;
-      showSavedCaption();
-    }
-
-    function nextSavedCaption() { if (savedCurrentIndex < savedCaptions.length - 1) { savedCurrentIndex++; showSavedCaption(); } }
-    function prevSavedCaption() { if (savedCurrentIndex > 0) { savedCurrentIndex--; showSavedCaption(); } }
 
     // EXTRACT + GENERATE
     document.getElementById("apiKey").addEventListener("input", updateExtractBtn);
@@ -453,6 +567,7 @@
     }
 
     function renderProductList(products) {
+      const allCats = [...presetCategories, ...customCategories];
       const list = document.getElementById("productList");
       list.innerHTML = "";
       products.forEach((p, i) => {
@@ -462,6 +577,10 @@
           <div class="product-row-inputs">
             <input placeholder="Product" value="${p}" id="product_${i}" />
             <input placeholder="Brand (optional)" id="brand_${i}" />
+            <select id="category_${i}">
+              <option value="">No category</option>
+              ${allCats.map(c => `<option value="${c}">${c}</option>`).join("")}
+            </select>
           </div>
           <div class="check-wrap">
             <input type="checkbox" class="save-check" id="save_${i}" />
@@ -513,7 +632,8 @@
       while (document.getElementById(`product_${i}`) !== null) {
         const product = document.getElementById(`product_${i}`).value.trim();
         const brand = document.getElementById(`brand_${i}`).value.trim();
-        if (document.getElementById(`save_${i}`).checked) saves.push(saveProduct(product, brand));
+        const category = document.getElementById(`category_${i}`).value;
+        if (document.getElementById(`save_${i}`).checked) saves.push(saveProduct(product, brand, category));
         const { caption } = fillTemplate(product, brand);
         captions.push(caption);
         captionProducts.push({ product, brand });
@@ -549,9 +669,7 @@
     function prevCaption() { if (currentIndex > 0) { currentIndex--; showCaption(); } }
 
     // SWIPE
-    let touchStartX = 0;
-    let swipeContext = null;
-
+    let touchStartX = 0, swipeContext = null;
     document.addEventListener("touchstart", e => {
       touchStartX = e.touches[0].clientX;
       const genVisible = document.getElementById("tab-generate").style.display !== "none";
@@ -560,7 +678,6 @@
       else if (savedVisible && document.getElementById("savedCaptionSection").style.display !== "none") swipeContext = "saved";
       else swipeContext = null;
     });
-
     document.addEventListener("touchend", e => {
       if (!swipeContext) return;
       const delta = e.changedTouches[0].clientX - touchStartX;
