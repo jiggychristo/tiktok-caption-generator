@@ -15,20 +15,30 @@
     button { width: 100%; padding: 14px; background: #fe2c55; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 8px; }
     button:disabled { background: #555; cursor: not-allowed; }
     .product-list { display: flex; flex-direction: column; gap: 8px; }
-    .product-row { display: flex; gap: 8px; }
+    .product-row { display: flex; gap: 8px; align-items: center; }
     .product-row input { flex: 1; padding: 8px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 0.9rem; }
+    .save-check { width: 18px; height: 18px; accent-color: #fe2c55; cursor: pointer; flex-shrink: 0; }
     .caption-card { background: #1a1a1a; border-radius: 12px; padding: 16px; text-align: center; }
-    .caption-text { font-size: 1.1rem; line-height: 1.5; margin-bottom: 16px; }
+    .caption-text { font-size: 1.1rem; line-height: 1.8; margin-bottom: 16px; white-space: pre-line; }
     .nav-buttons { display: flex; gap: 8px; }
     .nav-buttons button { background: #2a2a2a; }
     .copy-btn { background: #fe2c55 !important; }
     .counter { text-align: center; color: #aaa; font-size: 0.85rem; margin-bottom: 10px; }
     .status { text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 8px; min-height: 20px; word-break: break-word; }
     .error { color: #ff6b6b; }
+    .saved-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #2a2a2a; border-radius: 8px; margin-bottom: 6px; }
+    .saved-item span { font-size: 0.9rem; }
+    .saved-item button { width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; }
+    .recycle-btn { background: #2a7a4f; }
+    .delete-btn { background: #555; margin-left: 6px; }
+    .saved-actions { display: flex; gap: 6px; }
+    .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #fe2c55; }
+    .check-label { font-size: 0.75rem; color: #aaa; }
+    .check-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-direction: column; }
   </style>
 </head>
 <body>
-  <h1>🎵 Caption Generator</h1>
+  <h1>Caption Generator</h1>
 
   <!-- Step 1: API Key -->
   <div class="card">
@@ -46,7 +56,7 @@
 
   <!-- Step 3: Review Products -->
   <div class="card" id="productSection" style="display:none">
-    <label>Review & edit products (add brand if needed)</label>
+    <label>Review & edit products — check box to save for future batches</label>
     <div class="product-list" id="productList"></div>
     <button onclick="generateCaptions()" style="margin-top:12px">Generate Captions</button>
   </div>
@@ -62,6 +72,13 @@
         <button onclick="nextCaption()">Next →</button>
       </div>
     </div>
+  </div>
+
+  <!-- Saved Products -->
+  <div class="card" id="savedSection" style="display:none">
+    <div class="section-title">Saved Products</div>
+    <div id="savedList"></div>
+    <button onclick="generateFromSaved()" style="margin-top:8px; background:#2a7a4f;">Generate Batch from Saved</button>
   </div>
 
   <script>
@@ -83,6 +100,51 @@
 
     let captions = [];
     let currentIndex = 0;
+
+    // load saved products from localStorage
+    function getSaved() {
+      return JSON.parse(localStorage.getItem("savedProducts") || "[]");
+    }
+
+    function setSaved(data) {
+      localStorage.setItem("savedProducts", JSON.stringify(data));
+    }
+
+    function renderSavedSection() {
+      const saved = getSaved();
+      const section = document.getElementById("savedSection");
+      const list = document.getElementById("savedList");
+      if (saved.length === 0) { section.style.display = "none"; return; }
+      section.style.display = "block";
+      list.innerHTML = "";
+      saved.forEach((item, i) => {
+        const div = document.createElement("div");
+        div.className = "saved-item";
+        div.innerHTML = `
+          <span>${item.product}${item.brand ? " — " + item.brand : ""}</span>
+          <div class="saved-actions">
+            <button class="delete-btn" onclick="deleteSaved(${i})">✕</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function deleteSaved(i) {
+      const saved = getSaved();
+      saved.splice(i, 1);
+      setSaved(saved);
+      renderSavedSection();
+    }
+
+    function saveProduct(product, brand) {
+      const saved = getSaved();
+      const exists = saved.find(s => s.product === product && s.brand === brand);
+      if (!exists) {
+        saved.push({ product, brand, lastTemplateIndex: -1 });
+        setSaved(saved);
+      }
+    }
 
     document.getElementById("apiKey").addEventListener("input", updateExtractBtn);
     document.getElementById("imageUpload").addEventListener("change", updateExtractBtn);
@@ -129,13 +191,8 @@
 
         const data = await response.json();
 
-        if (data.error) {
-          throw new Error(data.error.message || JSON.stringify(data.error));
-        }
-
-        if (!data.content || !data.content[0]) {
-          throw new Error("Unexpected response: " + JSON.stringify(data));
-        }
+        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+        if (!data.content || !data.content[0]) throw new Error("Unexpected response: " + JSON.stringify(data));
 
         const text = data.content[0].text.replace(/```json|```/g, "").trim();
         const products = JSON.parse(text);
@@ -159,23 +216,45 @@
         row.innerHTML = `
           <input placeholder="Product" value="${p}" id="product_${i}" />
           <input placeholder="Brand (optional)" id="brand_${i}" />
+          <div class="check-wrap">
+            <input type="checkbox" class="save-check" id="save_${i}" />
+            <span class="check-label">save</span>
+          </div>
         `;
         list.appendChild(row);
       });
       document.getElementById("productSection").style.display = "block";
     }
 
-    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function pick(arr, exclude = -1) {
+      let idx;
+      do { idx = Math.floor(Math.random() * arr.length); } while (arr.length > 1 && idx === exclude);
+      return { value: arr[idx], index: idx };
+    }
 
-    function fillTemplate(template, product, brand) {
+    function formatLines(text) {
+      const words = text.split(" ");
+      const lines = [];
+      let i = 0;
+      while (i < words.length) {
+        const chunkSize = Math.floor(Math.random() * 3) + 3; // 3-5 words
+        lines.push(words.slice(i, i + chunkSize).join(" "));
+        i += chunkSize;
+      }
+      return lines.join("\n");
+    }
+
+    function fillTemplate(templateIndex, product, brand, lastTemplateIndex = -1) {
+      const { value: template, index: usedIndex } = pick(templates, lastTemplateIndex);
       let result = template;
       for (const [key, vals] of Object.entries(variations)) {
-        result = result.replaceAll(key, pick(vals));
+        result = result.replaceAll(key, pick(vals).value);
       }
       result = result.replaceAll("[product]", product);
       result = result.replaceAll("[brand]", brand || "the brand");
-      result = result.replaceAll("[brand/company]", brand || pick(["the brand", "the company"]));
-      return result.toLowerCase().replace(/[\[\]\(\)]/g, "");
+      result = result.replaceAll("[brand/company]", brand || pick(["the brand", "the company"]).value);
+      result = result.toLowerCase().replace(/[\[\]\(\)]/g, "");
+      return { caption: formatLines(result), templateIndex: usedIndex };
     }
 
     function generateCaptions() {
@@ -184,10 +263,28 @@
       while (document.getElementById(`product_${i}`) !== null) {
         const product = document.getElementById(`product_${i}`).value.trim();
         const brand = document.getElementById(`brand_${i}`).value.trim();
-        const template = pick(templates);
-        captions.push(fillTemplate(template, product, brand));
+        const shouldSave = document.getElementById(`save_${i}`).checked;
+        if (shouldSave) saveProduct(product, brand);
+        const { caption } = fillTemplate(i, product, brand);
+        captions.push(caption);
         i++;
       }
+      currentIndex = 0;
+      showCaption();
+      document.getElementById("captionSection").style.display = "block";
+      renderSavedSection();
+    }
+
+    function generateFromSaved() {
+      const saved = getSaved();
+      if (saved.length === 0) return;
+      captions = [];
+      const updated = saved.map(item => {
+        const { caption, templateIndex } = fillTemplate(0, item.product, item.brand, item.lastTemplateIndex);
+        captions.push(caption);
+        return { ...item, lastTemplateIndex: templateIndex };
+      });
+      setSaved(updated);
       currentIndex = 0;
       showCaption();
       document.getElementById("captionSection").style.display = "block";
@@ -216,6 +313,9 @@
         reader.readAsDataURL(file);
       });
     }
+
+    // init
+    renderSavedSection();
   </script>
 </body>
 </html>
