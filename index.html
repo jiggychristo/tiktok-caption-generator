@@ -126,6 +126,8 @@
         });
 
         const data = await response.json();
+        console.log("API response:", JSON.stringify(data));
+        if (!data.content) throw new Error(JSON.stringify(data));
         const text = data.content[0].text.replace(/```json|```/g, "").trim();
         const products = JSON.parse(text);
         renderProductList(products);
