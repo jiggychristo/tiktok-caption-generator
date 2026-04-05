@@ -121,7 +121,7 @@
               role: "user",
               content: [
                 { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-                { type: "text", text: "Extract the product names from this screenshot. Return ONLY a JSON array of strings, no explanation, no markdown, no backticks. Example: [\"Lip Stain\", \"Full Kit\", \"Pink Mask\"]" }
+                { type: "text", text: "Extract the product names from this screenshot. Shorten each name to 2-4 words max, keeping only the essential product identity. Remove brand names, sizes, quantities, and filler words. Return ONLY a JSON array of short clean strings, no explanation, no markdown, no backticks. Example: [\"lip stain\", \"full kit\", \"pink mask\"]" }
               ]
             }]
           })
@@ -175,7 +175,7 @@
       result = result.replaceAll("[product]", product);
       result = result.replaceAll("[brand]", brand || "the brand");
       result = result.replaceAll("[brand/company]", brand || pick(["the brand", "the company"]));
-      return result;
+      return result.toLowerCase().replace(/[\[\]\(\)]/g, "");
     }
 
     function generateCaptions() {
