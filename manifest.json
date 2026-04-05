@@ -1,0 +1,9 @@
+{
+  "name": "Caption Generator",
+  "short_name": "Captions",
+  "start_url": "/tiktok-caption-generator/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#fe2c55",
+  "icons": []
+}

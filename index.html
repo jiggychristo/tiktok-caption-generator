@@ -4,60 +4,94 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Caption Generator</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Captions" />
+  <meta name="theme-color" content="#fe2c55" />
   <style>
+    :root {
+      --bg: #0f0f0f; --card: #1a1a1a; --input: #2a2a2a;
+      --text: #ffffff; --subtext: #aaaaaa; --border: #444444;
+      --accent: #fe2c55; --green: #2a7a4f; --danger: #555555;
+    }
+    .light {
+      --bg: #f0f0f0; --card: #ffffff; --input: #e8e8e8;
+      --text: #111111; --subtext: #666666; --border: #cccccc;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #0f0f0f; color: #fff; padding: 20px; max-width: 500px; margin: auto; }
-    h1 { text-align: center; font-size: 1.3rem; margin-bottom: 20px; color: #fe2c55; }
-    .card { background: #1a1a1a; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    label { font-size: 0.85rem; color: #aaa; display: block; margin-bottom: 6px; }
-    input[type="file"] { width: 100%; padding: 10px; background: #2a2a2a; border: 1px dashed #444; border-radius: 8px; color: #fff; cursor: pointer; }
-    .text-input { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #fff; font-size: 0.9rem; }
-    button { width: 100%; padding: 14px; background: #fe2c55; color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 8px; }
-    button:disabled { background: #555; cursor: not-allowed; }
+    body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 500px; margin: auto; transition: background 0.2s, color 0.2s; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .topbar h1 { font-size: 1.3rem; color: var(--accent); margin: 0; }
+    .theme-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; width: auto; margin: 0; padding: 4px; }
+    .card { background: var(--card); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    label { font-size: 0.85rem; color: var(--subtext); display: block; margin-bottom: 6px; }
+    input[type="file"] { width: 100%; padding: 10px; background: var(--input); border: 1px dashed var(--border); border-radius: 8px; color: var(--text); cursor: pointer; }
+    .text-input { width: 100%; padding: 10px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+    button { width: 100%; padding: 14px; background: var(--accent); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 8px; }
+    button:disabled { background: var(--danger); cursor: not-allowed; }
     .product-list { display: flex; flex-direction: column; gap: 8px; }
-    .product-row { display: flex; gap: 8px; align-items: center; }
-    .product-row input { flex: 1; padding: 8px; background: #2a2a2a; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 0.9rem; }
-    .save-check { width: 18px; height: 18px; accent-color: #fe2c55; cursor: pointer; flex-shrink: 0; }
-    .caption-card { border-radius: 12px; padding: 16px; text-align: center; }
+    .product-row { display: flex; gap: 8px; align-items: flex-start; }
+    .product-row-inputs { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .product-row-inputs input { width: 100%; padding: 8px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+    .check-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; margin-top: 8px; }
+    .check-label { font-size: 0.75rem; color: var(--subtext); }
+    .save-check { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+    .caption-card { text-align: center; padding: 8px 0; }
     .caption-text { font-size: 1.1rem; line-height: 1.8; margin-bottom: 16px; white-space: pre-line; }
-    .nav-buttons { display: flex; gap: 8px; }
-    .nav-buttons button { background: #2a2a2a; }
-    .copy-btn { background: #fe2c55 !important; }
-    .counter { text-align: center; color: #aaa; font-size: 0.85rem; margin-bottom: 10px; }
-    .status { text-align: center; color: #aaa; font-size: 0.85rem; margin-top: 8px; min-height: 20px; word-break: break-word; }
+    .nav-buttons { display: flex; gap: 8px; margin-top: 8px; }
+    .nav-buttons button { background: var(--input); }
+    .copy-btn { background: var(--accent) !important; }
+    .reroll-btn { background: var(--green) !important; margin-top: 6px; }
+    .counter { text-align: center; color: var(--subtext); font-size: 0.85rem; margin-bottom: 10px; }
+    .swipe-hint { text-align: center; color: var(--subtext); font-size: 0.75rem; margin-top: 8px; }
+    .status { text-align: center; color: var(--subtext); font-size: 0.85rem; margin-top: 8px; min-height: 20px; word-break: break-word; }
     .error { color: #ff6b6b; }
-    .saved-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #2a2a2a; border-radius: 8px; margin-bottom: 6px; }
-    .saved-item span { font-size: 0.9rem; }
-    .delete-btn { width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; background: #555; }
-    .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: #fe2c55; }
-    .check-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-direction: column; }
-    .check-label { font-size: 0.75rem; color: #aaa; }
-    .green-btn { background: #2a7a4f !important; }
-    .template-item { background: #2a2a2a; border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 0.85rem; line-height: 1.5; color: #ddd; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-    .template-item span { flex: 1; }
-    .template-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
-    .template-actions button { width: auto; padding: 4px 10px; font-size: 0.75rem; margin: 0; background: #555; }
-    textarea { width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 8px; color: #fff; font-size: 0.85rem; min-height: 80px; resize: vertical; }
-    .tab-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-    .tab { flex: 1; padding: 10px; background: #2a2a2a; border: none; border-radius: 8px; color: #aaa; font-size: 0.85rem; cursor: pointer; }
-    .tab.active { background: #fe2c55; color: #fff; }
+    .success { color: #4caf50; }
+    .saved-item { background: var(--input); border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .saved-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .saved-item-name { font-size: 0.9rem; font-weight: bold; }
+    .saved-item-meta { font-size: 0.75rem; color: var(--subtext); margin-top: 2px; }
+    .delete-btn { width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; background: var(--danger); }
+    .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: var(--accent); }
+    .green-btn { background: var(--green) !important; }
+    .template-item { background: var(--input); border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 0.85rem; line-height: 1.5; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .template-item span { flex: 1; color: var(--text); }
+    .template-actions button { width: auto; padding: 4px 10px; font-size: 0.75rem; margin: 0; background: var(--danger); }
+    textarea { width: 100%; padding: 10px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.85rem; min-height: 80px; resize: vertical; }
+    .tab-bar { display: flex; gap: 6px; margin-bottom: 16px; }
+    .tab { flex: 1; padding: 10px 4px; background: var(--input); border: none; border-radius: 8px; color: var(--subtext); font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+    .tab.active { background: var(--accent); color: #fff; }
+    .key-row { display: flex; gap: 8px; align-items: flex-end; }
+    .key-row .text-input { flex: 1; }
+    .key-save-btn { width: auto; padding: 10px 14px; margin: 0; font-size: 0.85rem; flex-shrink: 0; }
+    .analyzed-label { font-size: 0.75rem; color: var(--subtext); margin-bottom: 4px; margin-top: 10px; }
+    .analyzed-preview { background: var(--input); border-radius: 8px; padding: 12px; font-size: 0.9rem; line-height: 1.6; color: var(--text); }
   </style>
 </head>
 <body>
-  <h1>🎵 Caption Generator</h1>
 
-  <!-- Tab Bar -->
+  <div class="topbar">
+    <h1>🎵 Caption Generator</h1>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">☀️</button>
+  </div>
+
   <div class="tab-bar">
     <button class="tab active" onclick="switchTab('generate')">Generate</button>
     <button class="tab" onclick="switchTab('saved')">Saved</button>
     <button class="tab" onclick="switchTab('templates')">Templates</button>
+    <button class="tab" onclick="switchTab('analyze')">Analyze</button>
   </div>
 
-  <!-- GENERATE TAB -->
+  <!-- GENERATE -->
   <div id="tab-generate">
     <div class="card">
       <label>Anthropic API Key</label>
-      <input class="text-input" type="password" id="apiKey" placeholder="sk-ant-..." />
+      <div class="key-row">
+        <input class="text-input" type="password" id="apiKey" placeholder="sk-ant-..." />
+        <button class="key-save-btn" onclick="saveApiKey()">Save</button>
+      </div>
+      <div class="status" id="keyStatus"></div>
     </div>
 
     <div class="card">
@@ -78,36 +112,39 @@
       <div class="caption-card">
         <div class="caption-text" id="captionText"></div>
         <button class="copy-btn" onclick="copyCaption()">Copy</button>
-        <div class="nav-buttons" style="margin-top:8px">
+        <button class="reroll-btn" onclick="rerollCaption()">↻ Re-roll</button>
+        <div class="nav-buttons">
           <button onclick="prevCaption()">← Prev</button>
           <button onclick="nextCaption()">Next →</button>
         </div>
       </div>
+      <div class="swipe-hint">swipe left / right to navigate</div>
     </div>
   </div>
 
-  <!-- SAVED TAB -->
+  <!-- SAVED -->
   <div id="tab-saved" style="display:none">
     <div class="card">
       <div class="section-title">Saved Products</div>
       <div id="savedList"><div class="status">Loading...</div></div>
       <button class="green-btn" onclick="generateFromSaved()" style="margin-top:8px">Generate Batch from Saved</button>
     </div>
-
     <div class="card" id="savedCaptionSection" style="display:none">
       <div class="counter" id="savedCounter"></div>
       <div class="caption-card">
         <div class="caption-text" id="savedCaptionText"></div>
         <button class="copy-btn" onclick="copySavedCaption()">Copy</button>
-        <div class="nav-buttons" style="margin-top:8px">
+        <button class="reroll-btn" onclick="rerollSavedCaption()">↻ Re-roll</button>
+        <div class="nav-buttons">
           <button onclick="prevSavedCaption()">← Prev</button>
           <button onclick="nextSavedCaption()">Next →</button>
         </div>
       </div>
+      <div class="swipe-hint">swipe left / right to navigate</div>
     </div>
   </div>
 
-  <!-- TEMPLATES TAB -->
+  <!-- TEMPLATES -->
   <div id="tab-templates" style="display:none">
     <div class="card">
       <div class="section-title">Your Templates</div>
@@ -122,23 +159,42 @@
     </div>
   </div>
 
-  <!-- Firebase -->
+  <!-- ANALYZE -->
+  <div id="tab-analyze" style="display:none">
+    <div class="card">
+      <div class="section-title">Analyze a Video</div>
+      <label>Upload a screenshot of a well-performing video — Claude will extract the caption and turn it into a reusable template</label>
+      <input type="file" id="analyzeUpload" accept="image/*" />
+      <button id="analyzeBtn" onclick="analyzeVideo()">Analyze Caption</button>
+      <div class="status" id="analyzeStatus"></div>
+    </div>
+    <div class="card" id="analyzeResult" style="display:none">
+      <div class="section-title">Result</div>
+      <div class="analyzed-label">Original caption:</div>
+      <div class="analyzed-preview" id="originalCaption"></div>
+      <div class="analyzed-label">Template version:</div>
+      <div class="analyzed-preview" id="templateCaption"></div>
+      <button class="green-btn" onclick="saveAnalyzedTemplate()" style="margin-top:12px">Save as Template</button>
+      <div class="status" id="analyzeSaveStatus"></div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
   <script>
-    // Firebase init
-    const firebaseConfig = {
+    firebase.initializeApp({
       apiKey: "AIzaSyAd75-gKyCI5NGN5NsNIfTUVu02NN-D7_A",
       authDomain: "bof-caption-generator.firebaseapp.com",
       projectId: "bof-caption-generator",
       storageBucket: "bof-caption-generator.firebasestorage.app",
       messagingSenderId: "190217265438",
-      appId: "1:190217265438:web:856c0fa7f97556a400690f",
-      measurementId: "G-Q1R2LGB0K0"
-    };
-    firebase.initializeApp(firebaseConfig);
+      appId: "1:190217265438:web:856c0fa7f97556a400690f"
+    });
     const db = firebase.firestore();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
 
     const defaultTemplates = [
       "when the [brand/company] is [closing/rebranding/cancelled] so the [product] is [dirt cheap/on ultra discount] [today/rn]",
@@ -153,29 +209,68 @@
       "[dirt cheap/on ultra discount]": ["dirt cheap", "on ultra discount"],
       "[today/rn]": ["today", "rn", "right now"],
       "[comparison]": ["one bottle", "a single item", "ever before"],
-      "[brand/company]": ["brand", "company"],
+      "[brand/company]": ["brand", "company"]
     };
 
-    let captions = [];
-    let savedCaptions = [];
-    let currentIndex = 0;
-    let savedCurrentIndex = 0;
+    let captions = [], captionProducts = [];
+    let savedCaptions = [], savedCaptionMeta = [];
+    let currentIndex = 0, savedCurrentIndex = 0;
     let activeTemplates = [];
+    let currentTheme = "dark";
+    let analyzedTemplate = "";
 
-    // tabs
+    // THEME
+    function toggleTheme() {
+      currentTheme = currentTheme === "dark" ? "light" : "dark";
+      applyTheme();
+      localStorage.setItem("theme", currentTheme);
+    }
+    function applyTheme() {
+      document.body.classList.toggle("light", currentTheme === "light");
+      document.getElementById("themeBtn").textContent = currentTheme === "light" ? "🌙" : "☀️";
+    }
+
+    // TABS
+    const tabNames = ["generate", "saved", "templates", "analyze"];
     function switchTab(tab) {
-      ["generate", "saved", "templates"].forEach(t => {
+      tabNames.forEach((t, i) => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? "block" : "none";
-        document.querySelectorAll(".tab")[["generate","saved","templates"].indexOf(t)].classList.toggle("active", t === tab);
+        document.querySelectorAll(".tab")[i].classList.toggle("active", t === tab);
       });
       if (tab === "saved") renderSavedList();
       if (tab === "templates") renderTemplateList();
     }
 
-    // templates
+    // API KEY
+    async function loadApiKey() {
+      try {
+        const doc = await db.collection("config").doc("settings").get();
+        if (doc.exists && doc.data().anthropicKey) {
+          document.getElementById("apiKey").value = doc.data().anthropicKey;
+        }
+      } catch(e) {}
+      updateExtractBtn();
+    }
+
+    async function saveApiKey() {
+      const key = document.getElementById("apiKey").value.trim();
+      const status = document.getElementById("keyStatus");
+      if (!key) { status.textContent = "Enter a key first."; return; }
+      try {
+        await db.collection("config").doc("settings").set({ anthropicKey: key }, { merge: true });
+        status.className = "status success";
+        status.textContent = "Key saved!";
+        setTimeout(() => status.textContent = "", 2000);
+      } catch(e) {
+        status.className = "status error";
+        status.textContent = "Failed to save.";
+      }
+    }
+
+    // TEMPLATES
     async function loadTemplates() {
       const doc = await db.collection("config").doc("templates").get();
-      if (doc.exists && doc.data().list && doc.data().list.length > 0) {
+      if (doc.exists && doc.data().list?.length > 0) {
         activeTemplates = doc.data().list;
       } else {
         activeTemplates = [...defaultTemplates];
@@ -190,12 +285,7 @@
       activeTemplates.forEach((t, i) => {
         const div = document.createElement("div");
         div.className = "template-item";
-        div.innerHTML = `
-          <span>${t}</span>
-          <div class="template-actions">
-            <button onclick="deleteTemplate(${i})">✕</button>
-          </div>
-        `;
+        div.innerHTML = `<span>${t}</span><div class="template-actions"><button onclick="deleteTemplate(${i})">✕</button></div>`;
         list.appendChild(div);
       });
     }
@@ -208,6 +298,7 @@
       activeTemplates.push(val);
       await db.collection("config").doc("templates").set({ list: activeTemplates });
       document.getElementById("newTemplate").value = "";
+      status.className = "status success";
       status.textContent = "Template added!";
       setTimeout(() => status.textContent = "", 2000);
       renderTemplateList();
@@ -220,23 +311,35 @@
       renderTemplateList();
     }
 
-    // saved products
+    // SAVED PRODUCTS
     async function renderSavedList() {
       const list = document.getElementById("savedList");
       list.innerHTML = "<div class='status'>Loading...</div>";
-      const snap = await db.collection("savedProducts").get();
-      if (snap.empty) { list.innerHTML = "<div class='status'>No saved products yet.</div>"; return; }
-      list.innerHTML = "";
-      snap.forEach(doc => {
-        const item = doc.data();
-        const div = document.createElement("div");
-        div.className = "saved-item";
-        div.innerHTML = `
-          <span>${item.product}${item.brand ? " — " + item.brand : ""}</span>
-          <button class="delete-btn" onclick="deleteSaved('${doc.id}')">✕</button>
-        `;
-        list.appendChild(div);
-      });
+      try {
+        const snap = await db.collection("savedProducts").get();
+        if (snap.empty) { list.innerHTML = "<div class='status'>No saved products yet.</div>"; return; }
+        list.innerHTML = "";
+        snap.forEach(doc => {
+          const item = doc.data();
+          const div = document.createElement("div");
+          div.className = "saved-item";
+          div.innerHTML = `
+            <div class="saved-item-header">
+              <span class="saved-item-name">${item.product}${item.brand ? " — " + item.brand : ""}</span>
+              <button class="delete-btn" onclick="deleteSaved('${doc.id}')">✕</button>
+            </div>
+            <div class="saved-item-meta">Used ${item.useCount || 0} time${(item.useCount || 0) === 1 ? "" : "s"}</div>
+            <input class="text-input" style="margin-top:8px;font-size:0.8rem;" placeholder="Notes (e.g. only use rebranding angle)" value="${item.notes || ""}" onchange="updateNotes('${doc.id}', this.value)" />
+          `;
+          list.appendChild(div);
+        });
+      } catch(e) {
+        list.innerHTML = "<div class='status error'>Failed to load.</div>";
+      }
+    }
+
+    async function updateNotes(id, notes) {
+      await db.collection("savedProducts").doc(id).update({ notes });
     }
 
     async function deleteSaved(id) {
@@ -247,7 +350,7 @@
     async function saveProduct(product, brand) {
       const snap = await db.collection("savedProducts").where("product", "==", product).where("brand", "==", brand).get();
       if (snap.empty) {
-        await db.collection("savedProducts").add({ product, brand, lastTemplateIndex: -1 });
+        await db.collection("savedProducts").add({ product, brand, lastTemplateIndex: -1, useCount: 0, notes: "" });
       }
     }
 
@@ -256,12 +359,17 @@
       if (snap.empty) return;
       await loadTemplates();
       savedCaptions = [];
+      savedCaptionMeta = [];
       const updates = [];
       snap.forEach(doc => {
         const item = doc.data();
         const { caption, templateIndex } = fillTemplate(item.product, item.brand, item.lastTemplateIndex);
         savedCaptions.push(caption);
-        updates.push(db.collection("savedProducts").doc(doc.id).update({ lastTemplateIndex: templateIndex }));
+        savedCaptionMeta.push({ docId: doc.id, product: item.product, brand: item.brand, lastTemplateIndex: templateIndex });
+        updates.push(db.collection("savedProducts").doc(doc.id).update({
+          lastTemplateIndex: templateIndex,
+          useCount: (item.useCount || 0) + 1
+        }));
       });
       await Promise.all(updates);
       savedCurrentIndex = 0;
@@ -281,10 +389,19 @@
       setTimeout(() => btn.textContent = "Copy", 1500);
     }
 
+    async function rerollSavedCaption() {
+      await loadTemplates();
+      const meta = savedCaptionMeta[savedCurrentIndex];
+      const { caption, templateIndex } = fillTemplate(meta.product, meta.brand, meta.lastTemplateIndex);
+      savedCaptions[savedCurrentIndex] = caption;
+      savedCaptionMeta[savedCurrentIndex].lastTemplateIndex = templateIndex;
+      showSavedCaption();
+    }
+
     function nextSavedCaption() { if (savedCurrentIndex < savedCaptions.length - 1) { savedCurrentIndex++; showSavedCaption(); } }
     function prevSavedCaption() { if (savedCurrentIndex > 0) { savedCurrentIndex--; showSavedCaption(); } }
 
-    // extract + generate
+    // EXTRACT + GENERATE
     document.getElementById("apiKey").addEventListener("input", updateExtractBtn);
     document.getElementById("imageUpload").addEventListener("change", updateExtractBtn);
 
@@ -294,47 +411,41 @@
       document.getElementById("extractBtn").disabled = !(hasKey && hasFile);
     }
 
+    function getApiKey() { return document.getElementById("apiKey").value.trim(); }
+
+    async function callClaude(messages, max_tokens = 1000) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": getApiKey(),
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens, messages })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+      if (!data.content?.[0]) throw new Error("Unexpected response: " + JSON.stringify(data));
+      return data.content[0].text;
+    }
+
     async function extractProducts() {
-      const apiKey = document.getElementById("apiKey").value.trim();
       const file = document.getElementById("imageUpload").files[0];
       const status = document.getElementById("extractStatus");
       status.className = "status";
       status.textContent = "Reading screenshot...";
       document.getElementById("extractBtn").disabled = true;
-
       try {
         const base64 = await toBase64(file);
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 1000,
-            messages: [{
-              role: "user",
-              content: [
-                { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-                { type: "text", text: "Extract the product names from this screenshot. Shorten each name to 2-4 words max, keeping only the essential product identity. Remove brand names, sizes, quantities, and filler words. Return ONLY a JSON array of short clean strings, no explanation, no markdown, no backticks. Example: [\"lip stain\", \"full kit\", \"pink mask\"]" }
-              ]
-            }]
-          })
-        });
-
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-        if (!data.content || !data.content[0]) throw new Error("Unexpected response: " + JSON.stringify(data));
-
-        const text = data.content[0].text.replace(/```json|```/g, "").trim();
-        const products = JSON.parse(text);
+        const text = await callClaude([{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
+          { type: "text", text: "Extract the product names from this screenshot. Shorten each name to 2-4 words max, keeping only the essential product identity. Remove brand names, sizes, quantities, and filler words. Return ONLY a JSON array of short clean strings, no explanation, no markdown, no backticks. Example: [\"lip stain\", \"full kit\", \"pink mask\"]" }
+        ]}]);
+        const products = JSON.parse(text.replace(/```json|```/g, "").trim());
         renderProductList(products);
         status.textContent = `Found ${products.length} products. Review below.`;
-
-      } catch (err) {
+      } catch(err) {
         status.className = "status error";
         status.textContent = "Error: " + err.message;
         document.getElementById("extractBtn").disabled = false;
@@ -348,8 +459,10 @@
         const row = document.createElement("div");
         row.className = "product-row";
         row.innerHTML = `
-          <input placeholder="Product" value="${p}" id="product_${i}" />
-          <input placeholder="Brand (optional)" id="brand_${i}" />
+          <div class="product-row-inputs">
+            <input placeholder="Product" value="${p}" id="product_${i}" />
+            <input placeholder="Brand (optional)" id="brand_${i}" />
+          </div>
           <div class="check-wrap">
             <input type="checkbox" class="save-check" id="save_${i}" />
             <span class="check-label">save</span>
@@ -371,9 +484,9 @@
       const lines = [];
       let i = 0;
       while (i < words.length) {
-        const chunkSize = Math.floor(Math.random() * 3) + 3;
-        lines.push(words.slice(i, i + chunkSize).join(" "));
-        i += chunkSize;
+        const size = Math.floor(Math.random() * 3) + 3;
+        lines.push(words.slice(i, i + size).join(" "));
+        i += size;
       }
       return lines.join("\n");
     }
@@ -394,15 +507,16 @@
     async function generateCaptions() {
       await loadTemplates();
       captions = [];
+      captionProducts = [];
       let i = 0;
       const saves = [];
       while (document.getElementById(`product_${i}`) !== null) {
         const product = document.getElementById(`product_${i}`).value.trim();
         const brand = document.getElementById(`brand_${i}`).value.trim();
-        const shouldSave = document.getElementById(`save_${i}`).checked;
-        if (shouldSave) saves.push(saveProduct(product, brand));
+        if (document.getElementById(`save_${i}`).checked) saves.push(saveProduct(product, brand));
         const { caption } = fillTemplate(product, brand);
         captions.push(caption);
+        captionProducts.push({ product, brand });
         i++;
       }
       await Promise.all(saves);
@@ -423,9 +537,80 @@
       setTimeout(() => btn.textContent = "Copy", 1500);
     }
 
+    async function rerollCaption() {
+      await loadTemplates();
+      const { product, brand } = captionProducts[currentIndex];
+      const { caption } = fillTemplate(product, brand);
+      captions[currentIndex] = caption;
+      showCaption();
+    }
+
     function nextCaption() { if (currentIndex < captions.length - 1) { currentIndex++; showCaption(); } }
     function prevCaption() { if (currentIndex > 0) { currentIndex--; showCaption(); } }
 
+    // SWIPE
+    let touchStartX = 0;
+    let swipeContext = null;
+
+    document.addEventListener("touchstart", e => {
+      touchStartX = e.touches[0].clientX;
+      const genVisible = document.getElementById("tab-generate").style.display !== "none";
+      const savedVisible = document.getElementById("tab-saved").style.display !== "none";
+      if (genVisible && document.getElementById("captionSection").style.display !== "none") swipeContext = "generate";
+      else if (savedVisible && document.getElementById("savedCaptionSection").style.display !== "none") swipeContext = "saved";
+      else swipeContext = null;
+    });
+
+    document.addEventListener("touchend", e => {
+      if (!swipeContext) return;
+      const delta = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(delta) < 50) return;
+      if (swipeContext === "generate") delta < 0 ? nextCaption() : prevCaption();
+      else delta < 0 ? nextSavedCaption() : prevSavedCaption();
+    });
+
+    // ANALYZE
+    async function analyzeVideo() {
+      const file = document.getElementById("analyzeUpload").files[0];
+      const status = document.getElementById("analyzeStatus");
+      if (!file) { status.textContent = "Please upload a screenshot first."; return; }
+      if (!getApiKey()) { status.className = "status error"; status.textContent = "Enter your API key in the Generate tab first."; return; }
+      status.className = "status";
+      status.textContent = "Analyzing caption...";
+      document.getElementById("analyzeBtn").disabled = true;
+      document.getElementById("analyzeResult").style.display = "none";
+      try {
+        const base64 = await toBase64(file);
+        const text = await callClaude([{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
+          { type: "text", text: "This is a screenshot of a TikTok video. Extract the text overlay caption. Then create a reusable template by replacing the product name with [product], brand/company name with [brand/company], time words like 'today' or 'rn' with [today/rn], and price descriptors like 'dirt cheap' or 'ultra discount' with [dirt cheap/on ultra discount]. Return ONLY a JSON object with fields 'original' and 'template'. No markdown, no backticks, no explanation." }
+        ]}]);
+        const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
+        document.getElementById("originalCaption").textContent = parsed.original;
+        document.getElementById("templateCaption").textContent = parsed.template;
+        analyzedTemplate = parsed.template;
+        document.getElementById("analyzeResult").style.display = "block";
+        status.textContent = "";
+      } catch(err) {
+        status.className = "status error";
+        status.textContent = "Error: " + err.message;
+      } finally {
+        document.getElementById("analyzeBtn").disabled = false;
+      }
+    }
+
+    async function saveAnalyzedTemplate() {
+      if (!analyzedTemplate) return;
+      await loadTemplates();
+      activeTemplates.push(analyzedTemplate);
+      await db.collection("config").doc("templates").set({ list: activeTemplates });
+      const status = document.getElementById("analyzeSaveStatus");
+      status.className = "status success";
+      status.textContent = "Saved to templates!";
+      setTimeout(() => status.textContent = "", 2000);
+    }
+
+    // UTILS
     function toBase64(file) {
       return new Promise((res, rej) => {
         const reader = new FileReader();
@@ -434,6 +619,13 @@
         reader.readAsDataURL(file);
       });
     }
+
+    // INIT
+    (async () => {
+      currentTheme = localStorage.getItem("theme") || "dark";
+      applyTheme();
+      await loadApiKey();
+    })();
   </script>
 </body>
 </html>
