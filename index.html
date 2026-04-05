@@ -131,7 +131,8 @@
         renderProductList(products);
         status.textContent = `Found ${products.length} products. Review below.`;
       } catch (err) {
-        status.textContent = "Error reading screenshot. Check your API key.";
+        status.textContent = "Error: " + err.message;
+        console.error(err);
         document.getElementById("extractBtn").disabled = false;
       }
     }
