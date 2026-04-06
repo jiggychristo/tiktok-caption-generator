@@ -52,7 +52,6 @@
     .saved-item-header { display: flex; justify-content: space-between; align-items: center; }
     .saved-item-name { font-size: 0.9rem; font-weight: bold; }
     .saved-item-meta { font-size: 0.75rem; color: var(--subtext); margin-top: 2px; }
-    .saved-item-category { display: inline-block; font-size: 0.7rem; background: var(--accent); color: white; border-radius: 6px; padding: 2px 8px; margin-top: 4px; }
     .delete-btn { width: auto; padding: 6px 12px; font-size: 0.8rem; margin: 0; background: var(--danger); }
     .section-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 10px; color: var(--accent); }
     .green-btn { background: var(--green) !important; }
@@ -60,8 +59,8 @@
     .template-item span { flex: 1; color: var(--text); }
     .template-actions button { width: auto; padding: 4px 10px; font-size: 0.75rem; margin: 0; background: var(--danger); }
     textarea { width: 100%; padding: 10px; background: var(--input); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.85rem; min-height: 80px; resize: vertical; }
-    .tab-bar { display: flex; gap: 6px; margin-bottom: 16px; }
-    .tab { flex: 1; padding: 10px 4px; background: var(--input); border: none; border-radius: 8px; color: var(--subtext); font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+    .tab-bar { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { flex: 1; padding: 10px 4px; background: var(--input); border: none; border-radius: 8px; color: var(--subtext); font-size: 0.75rem; cursor: pointer; white-space: nowrap; min-width: 60px; }
     .tab.active { background: var(--accent); color: #fff; }
     .key-row { display: flex; gap: 8px; align-items: flex-end; }
     .key-row .text-input { flex: 1; }
@@ -71,7 +70,6 @@
     .category-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
     .chip { padding: 8px 14px; border-radius: 20px; border: none; font-size: 0.85rem; cursor: pointer; background: var(--input); color: var(--subtext); width: auto; margin: 0; font-weight: normal; }
     .chip.selected { background: var(--accent); color: white; font-weight: bold; }
-    .chip.custom-add { border: 1px dashed var(--border); background: transparent; }
     .selectable-product { display: flex; align-items: center; gap: 10px; background: var(--input); border-radius: 8px; padding: 10px; margin-bottom: 6px; cursor: pointer; }
     .selectable-product input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
     .selectable-product-info { flex: 1; }
@@ -81,6 +79,15 @@
     .custom-cat-row { display: flex; gap: 8px; margin-top: 8px; }
     .custom-cat-row input { flex: 1; }
     .custom-cat-row button { width: auto; padding: 10px 14px; margin: 0; font-size: 0.85rem; }
+    .batch-caption-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+    .batch-caption-item { background: var(--input); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .batch-caption-text { font-size: 0.85rem; line-height: 1.6; white-space: pre-line; flex: 1; color: var(--text); }
+    .batch-caption-product { font-size: 0.75rem; color: var(--subtext); margin-bottom: 4px; }
+    .reroll-small { width: auto; padding: 6px 10px; font-size: 0.75rem; margin: 0; background: var(--green); flex-shrink: 0; }
+    .send-btn { background: #5856d6 !important; }
+    .flow-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+    .flow-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-weight: bold; background: var(--input); color: var(--subtext); margin: 0; }
+    .flow-btn.active { background: var(--accent); color: white; }
   </style>
 </head>
 <body>
@@ -92,6 +99,7 @@
 
   <div class="tab-bar">
     <button class="tab active" onclick="switchTab('generate')">Generate</button>
+    <button class="tab" onclick="switchTab('batch')">Batch</button>
     <button class="tab" onclick="switchTab('saved')">Saved</button>
     <button class="tab" onclick="switchTab('templates')">Templates</button>
     <button class="tab" onclick="switchTab('analyze')">Analyze</button>
@@ -107,20 +115,17 @@
       </div>
       <div class="status" id="keyStatus"></div>
     </div>
-
     <div class="card">
       <label>Upload product list screenshot</label>
       <input type="file" id="imageUpload" accept="image/*" />
       <button id="extractBtn" disabled onclick="extractProducts()">Extract Products</button>
       <div class="status" id="extractStatus"></div>
     </div>
-
     <div class="card" id="productSection" style="display:none">
       <label>Review & edit — check to save product</label>
       <div class="product-list" id="productList"></div>
       <button onclick="generateCaptions()" style="margin-top:12px">Generate Captions</button>
     </div>
-
     <div class="card" id="captionSection" style="display:none">
       <div class="counter" id="counter"></div>
       <div class="caption-card">
@@ -136,30 +141,62 @@
     </div>
   </div>
 
+  <!-- BATCH -->
+  <div id="tab-batch" style="display:none">
+    <div class="card">
+      <div class="section-title">Batch Generator</div>
+      <div class="flow-toggle">
+        <button class="flow-btn active" id="flowScreenshot" onclick="switchBatchFlow('screenshot')">📸 Screenshot</button>
+        <button class="flow-btn" id="flowSaved" onclick="switchBatchFlow('saved')">💾 Saved Products</button>
+      </div>
+
+      <!-- Screenshot flow -->
+      <div id="batchScreenshotFlow">
+        <label>Upload product list screenshot</label>
+        <input type="file" id="batchImageUpload" accept="image/*" />
+        <button id="batchExtractBtn" onclick="batchExtractProducts()">Extract & Generate All</button>
+        <div class="status" id="batchExtractStatus"></div>
+      </div>
+
+      <!-- Saved products flow -->
+      <div id="batchSavedFlow" style="display:none">
+        <label>Pick a category</label>
+        <div class="category-chips" id="batchCategoryChips">
+          <div class="status">Loading...</div>
+        </div>
+        <div id="batchProductPick" style="display:none">
+          <label id="batchProductPickLabel">Select products</label>
+          <div id="batchSelectableProducts"></div>
+          <button onclick="generateBatchFromSelected()" style="margin-top:8px">Generate Captions</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Batch caption list -->
+    <div class="card" id="batchCaptionCard" style="display:none">
+      <div class="section-title" id="batchCaptionCount">0 Captions</div>
+      <div class="batch-caption-list" id="batchCaptionList"></div>
+      <button class="send-btn" onclick="sendToDesktop()" style="margin-top:12px">📤 Send to Desktop</button>
+      <div class="status" id="batchSendStatus"></div>
+    </div>
+  </div>
+
   <!-- SAVED -->
   <div id="tab-saved" style="display:none">
-
-    <!-- Step 1: Pick category -->
     <div class="card" id="categoryPickCard">
       <div class="section-title">Pick a Category</div>
-      <div class="category-chips" id="categoryChips">
-        <div class="status">Loading...</div>
-      </div>
+      <div class="category-chips" id="categoryChips"><div class="status">Loading...</div></div>
       <div class="custom-cat-row">
         <input class="text-input" id="customCatInput" placeholder="New category name..." />
         <button onclick="addCustomCategory()">Add</button>
       </div>
     </div>
-
-    <!-- Step 2: Select products -->
     <div class="card" id="productPickCard" style="display:none">
       <div class="section-title" id="productPickTitle">Products</div>
       <div id="selectableProductList"></div>
       <button class="green-btn" onclick="generateFromSelected()" style="margin-top:8px">Generate Captions</button>
       <button onclick="manageCategory()" style="background:var(--danger); margin-top:8px;">Manage / Delete Products</button>
     </div>
-
-    <!-- Step 3: Captions -->
     <div class="card" id="savedCaptionSection" style="display:none">
       <div class="counter" id="savedCounter"></div>
       <div class="caption-card">
@@ -173,14 +210,11 @@
       </div>
       <div class="swipe-hint">swipe left / right to navigate</div>
     </div>
-
-    <!-- Manage mode -->
     <div class="card" id="manageCard" style="display:none">
       <div class="section-title" id="manageTitle">Manage Products</div>
       <div id="manageList"></div>
       <button onclick="closeManage()" style="background:var(--input); margin-top:8px; color:var(--text);">Done</button>
     </div>
-
   </div>
 
   <!-- TEMPLATES -->
@@ -259,6 +293,8 @@
     let analyzedTemplate = "";
     let selectedCategory = "";
     let customCategories = [];
+    let batchCaptions = [];
+    let batchSelectedCategory = "";
 
     // THEME
     function toggleTheme() {
@@ -272,7 +308,7 @@
     }
 
     // TABS
-    const tabNames = ["generate", "saved", "templates", "analyze"];
+    const tabNames = ["generate", "batch", "saved", "templates", "analyze"];
     function switchTab(tab) {
       tabNames.forEach((t, i) => {
         document.getElementById(`tab-${t}`).style.display = t === tab ? "block" : "none";
@@ -280,16 +316,191 @@
       });
       if (tab === "saved") renderCategoryChips();
       if (tab === "templates") renderTemplateList();
+      if (tab === "batch") initBatchTab();
+    }
+
+    // BATCH FLOW TOGGLE
+    function switchBatchFlow(flow) {
+      document.getElementById("batchScreenshotFlow").style.display = flow === "screenshot" ? "block" : "none";
+      document.getElementById("batchSavedFlow").style.display = flow === "saved" ? "block" : "none";
+      document.getElementById("flowScreenshot").classList.toggle("active", flow === "screenshot");
+      document.getElementById("flowSaved").classList.toggle("active", flow === "saved");
+      if (flow === "saved") renderBatchCategoryChips();
+    }
+
+    async function initBatchTab() {
+      await loadCustomCategories();
+    }
+
+    // BATCH — SCREENSHOT FLOW
+    async function batchExtractProducts() {
+      const file = document.getElementById("batchImageUpload").files[0];
+      const status = document.getElementById("batchExtractStatus");
+      if (!file) { status.textContent = "Please upload a screenshot first."; return; }
+      if (!getApiKey()) { status.className = "status error"; status.textContent = "Enter your API key in the Generate tab first."; return; }
+      status.className = "status";
+      status.textContent = "Reading screenshot...";
+      document.getElementById("batchExtractBtn").disabled = true;
+      try {
+        await loadTemplates();
+        const base64 = await toBase64(file);
+        const text = await callClaude([{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
+          { type: "text", text: "Extract the product names from this screenshot. Shorten each name to 2-4 words max, keeping only the essential product identity. Remove brand names, sizes, quantities, and filler words. Return ONLY a JSON array of short clean strings, no explanation, no markdown, no backticks. Example: [\"lip stain\", \"full kit\", \"pink mask\"]" }
+        ]}]);
+        const products = JSON.parse(text.replace(/```json|```/g, "").trim());
+        batchCaptions = products.map(p => ({
+          product: p,
+          brand: "",
+          caption: fillTemplate(p, "").caption
+        }));
+        renderBatchCaptions();
+        status.textContent = `Generated ${batchCaptions.length} captions. Review below.`;
+      } catch(err) {
+        status.className = "status error";
+        status.textContent = "Error: " + err.message;
+      } finally {
+        document.getElementById("batchExtractBtn").disabled = false;
+      }
+    }
+
+    // BATCH — SAVED PRODUCTS FLOW
+    async function renderBatchCategoryChips() {
+      await loadCustomCategories();
+      const allCats = [...presetCategories, ...customCategories];
+      const chips = document.getElementById("batchCategoryChips");
+      chips.innerHTML = "";
+      allCats.forEach(cat => {
+        const btn = document.createElement("button");
+        btn.className = "chip" + (cat === batchSelectedCategory ? " selected" : "");
+        btn.textContent = cat;
+        btn.onclick = () => selectBatchCategory(cat);
+        chips.appendChild(btn);
+      });
+    }
+
+    async function selectBatchCategory(cat) {
+      batchSelectedCategory = cat;
+      renderBatchCategoryChips();
+      document.getElementById("batchProductPickLabel").textContent = cat + " — select products";
+      document.getElementById("batchProductPick").style.display = "block";
+      const list = document.getElementById("batchSelectableProducts");
+      list.innerHTML = "<div class='status'>Loading...</div>";
+      const snap = await db.collection("savedProducts").where("category", "==", cat).get();
+      if (snap.empty) { list.innerHTML = "<div class='status'>No products in this category.</div>"; return; }
+      list.innerHTML = "";
+      snap.forEach(doc => {
+        const item = doc.data();
+        const div = document.createElement("div");
+        div.className = "selectable-product";
+        div.innerHTML = `
+          <input type="checkbox" id="bsel_${doc.id}" checked />
+          <div class="selectable-product-info">
+            <div class="selectable-product-name">${item.product}${item.brand ? " — " + item.brand : ""}</div>
+            <div class="selectable-product-meta">${item.notes || ""}</div>
+          </div>
+        `;
+        div.querySelector("input").dataset.docId = doc.id;
+        div.querySelector("input").dataset.product = item.product;
+        div.querySelector("input").dataset.brand = item.brand || "";
+        list.appendChild(div);
+      });
+    }
+
+    async function generateBatchFromSelected() {
+      await loadTemplates();
+      const checkboxes = document.querySelectorAll("#batchSelectableProducts input[type='checkbox']:checked");
+      if (checkboxes.length === 0) return;
+      batchCaptions = [];
+      checkboxes.forEach(cb => {
+        const product = cb.dataset.product;
+        const brand = cb.dataset.brand;
+        const { caption } = fillTemplate(product, brand);
+        batchCaptions.push({ product, brand, caption });
+      });
+      renderBatchCaptions();
+    }
+
+    // BATCH — RENDER CAPTIONS
+    function renderBatchCaptions() {
+      const list = document.getElementById("batchCaptionList");
+      list.innerHTML = "";
+      document.getElementById("batchCaptionCount").textContent = `${batchCaptions.length} Captions`;
+      batchCaptions.forEach((item, i) => {
+        const div = document.createElement("div");
+        div.className = "batch-caption-item";
+        div.innerHTML = `
+          <div style="flex:1">
+            <div class="batch-caption-product">${item.product}${item.brand ? " — " + item.brand : ""}</div>
+            <div class="batch-caption-text" id="bcaption_${i}">${item.caption}</div>
+          </div>
+          <button class="reroll-small" onclick="rerollBatchCaption(${i})">↻</button>
+        `;
+        list.appendChild(div);
+      });
+      document.getElementById("batchCaptionCard").style.display = "block";
+      document.getElementById("batchSendStatus").textContent = "";
+    }
+
+    async function rerollBatchCaption(i) {
+      await loadTemplates();
+      const { product, brand } = batchCaptions[i];
+      const { caption } = fillTemplate(product, brand);
+      batchCaptions[i].caption = caption;
+      document.getElementById(`bcaption_${i}`).textContent = caption;
+    }
+
+    // SEND TO DESKTOP
+    async function sendToDesktop() {
+      const status = document.getElementById("batchSendStatus");
+      if (batchCaptions.length === 0) { status.textContent = "No captions to send."; return; }
+      status.className = "status";
+      status.textContent = "Saving...";
+
+      const payload = {
+        createdAt: new Date().toISOString(),
+        count: batchCaptions.length,
+        captions: batchCaptions.map(item => ({
+          product: item.product,
+          brand: item.brand || "",
+          caption: item.caption
+        }))
+      };
+
+      // 1. Save to Firebase
+      try {
+        await db.collection("batches").doc("latest").set(payload);
+      } catch(e) {
+        status.className = "status error";
+        status.textContent = "Firebase save failed: " + e.message;
+        return;
+      }
+
+      // 2. Save JSON file locally
+      try {
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `captions_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch(e) {
+        status.className = "status error";
+        status.textContent = "File download failed: " + e.message;
+        return;
+      }
+
+      status.className = "status success";
+      status.textContent = "✓ Saved to Firebase + downloaded JSON!";
     }
 
     // API KEY
     async function loadApiKey() {
       try {
         const doc = await db.collection("config").doc("settings").get();
-        if (doc.exists && doc.data().anthropicKey) {
-          document.getElementById("apiKey").value = doc.data().anthropicKey;
-          if (doc.data().customCategories) customCategories = doc.data().customCategories;
-        }
+        if (doc.exists && doc.data().anthropicKey) document.getElementById("apiKey").value = doc.data().anthropicKey;
+        if (doc.exists && doc.data().customCategories) customCategories = doc.data().customCategories;
       } catch(e) {}
       updateExtractBtn();
     }
@@ -319,8 +530,7 @@
       const val = document.getElementById("customCatInput").value.trim();
       if (!val) return;
       if ([...presetCategories, ...customCategories].map(c => c.toLowerCase()).includes(val.toLowerCase())) {
-        document.getElementById("customCatInput").value = "";
-        return;
+        document.getElementById("customCatInput").value = ""; return;
       }
       customCategories.push(val);
       await db.collection("config").doc("settings").set({ customCategories }, { merge: true });
@@ -356,10 +566,7 @@
       const list = document.getElementById("selectableProductList");
       list.innerHTML = "<div class='status'>Loading...</div>";
       const snap = await db.collection("savedProducts").where("category", "==", cat).get();
-      if (snap.empty) {
-        list.innerHTML = "<div class='status'>No products in this category yet. Save some from the Generate tab.</div>";
-        return;
-      }
+      if (snap.empty) { list.innerHTML = "<div class='status'>No products in this category yet.</div>"; return; }
       list.innerHTML = "";
       snap.forEach(doc => {
         const item = doc.data();
@@ -431,34 +638,24 @@
       renderSelectableProducts(selectedCategory);
     }
 
-    async function updateNotes(id, notes) {
-      await db.collection("savedProducts").doc(id).update({ notes });
-    }
-
-    async function deleteSaved(id) {
-      await db.collection("savedProducts").doc(id).delete();
-      manageCategory();
-    }
+    async function updateNotes(id, notes) { await db.collection("savedProducts").doc(id).update({ notes }); }
+    async function deleteSaved(id) { await db.collection("savedProducts").doc(id).delete(); manageCategory(); }
 
     async function saveProduct(product, brand, category) {
       const snap = await db.collection("savedProducts").where("product", "==", product).where("brand", "==", brand).get();
-      if (snap.empty) {
-        await db.collection("savedProducts").add({ product, brand, category, lastTemplateIndex: -1, useCount: 0, notes: "" });
-      }
+      if (snap.empty) await db.collection("savedProducts").add({ product, brand, category, lastTemplateIndex: -1, useCount: 0, notes: "" });
     }
 
     function showSavedCaption() {
       document.getElementById("savedCaptionText").textContent = savedCaptions[savedCurrentIndex];
       document.getElementById("savedCounter").textContent = `${savedCurrentIndex + 1} of ${savedCaptions.length}`;
     }
-
     function copySavedCaption() {
       navigator.clipboard.writeText(savedCaptions[savedCurrentIndex]);
       const btn = document.querySelector("#savedCaptionSection .copy-btn");
       btn.textContent = "Copied!";
       setTimeout(() => btn.textContent = "Copy", 1500);
     }
-
     async function rerollSavedCaption() {
       await loadTemplates();
       const meta = savedCaptionMeta[savedCurrentIndex];
@@ -467,7 +664,6 @@
       savedCaptionMeta[savedCurrentIndex].lastTemplateIndex = templateIndex;
       showSavedCaption();
     }
-
     function nextSavedCaption() { if (savedCurrentIndex < savedCaptions.length - 1) { savedCurrentIndex++; showSavedCaption(); } }
     function prevSavedCaption() { if (savedCurrentIndex > 0) { savedCurrentIndex--; showSavedCaption(); } }
 
@@ -649,14 +845,12 @@
       document.getElementById("captionText").textContent = captions[currentIndex];
       document.getElementById("counter").textContent = `${currentIndex + 1} of ${captions.length}`;
     }
-
     function copyCaption() {
       navigator.clipboard.writeText(captions[currentIndex]);
       const btn = document.querySelector("#captionSection .copy-btn");
       btn.textContent = "Copied!";
       setTimeout(() => btn.textContent = "Copy", 1500);
     }
-
     async function rerollCaption() {
       await loadTemplates();
       const { product, brand } = captionProducts[currentIndex];
@@ -664,7 +858,6 @@
       captions[currentIndex] = caption;
       showCaption();
     }
-
     function nextCaption() { if (currentIndex < captions.length - 1) { currentIndex++; showCaption(); } }
     function prevCaption() { if (currentIndex > 0) { currentIndex--; showCaption(); } }
 
