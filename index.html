@@ -149,21 +149,15 @@
         <button class="flow-btn active" id="flowScreenshot" onclick="switchBatchFlow('screenshot')">📸 Screenshot</button>
         <button class="flow-btn" id="flowSaved" onclick="switchBatchFlow('saved')">💾 Saved Products</button>
       </div>
-
-      <!-- Screenshot flow -->
       <div id="batchScreenshotFlow">
         <label>Upload product list screenshot</label>
         <input type="file" id="batchImageUpload" accept="image/*" />
         <button id="batchExtractBtn" onclick="batchExtractProducts()">Extract & Generate All</button>
         <div class="status" id="batchExtractStatus"></div>
       </div>
-
-      <!-- Saved products flow -->
       <div id="batchSavedFlow" style="display:none">
         <label>Pick a category</label>
-        <div class="category-chips" id="batchCategoryChips">
-          <div class="status">Loading...</div>
-        </div>
+        <div class="category-chips" id="batchCategoryChips"><div class="status">Loading...</div></div>
         <div id="batchProductPick" style="display:none">
           <label id="batchProductPickLabel">Select products</label>
           <div id="batchSelectableProducts"></div>
@@ -171,8 +165,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Batch caption list -->
     <div class="card" id="batchCaptionCard" style="display:none">
       <div class="section-title" id="batchCaptionCount">0 Captions</div>
       <div class="batch-caption-list" id="batchCaptionList"></div>
@@ -319,7 +311,7 @@
       if (tab === "batch") initBatchTab();
     }
 
-    // BATCH FLOW TOGGLE
+    // BATCH FLOW
     function switchBatchFlow(flow) {
       document.getElementById("batchScreenshotFlow").style.display = flow === "screenshot" ? "block" : "none";
       document.getElementById("batchSavedFlow").style.display = flow === "saved" ? "block" : "none";
@@ -328,11 +320,9 @@
       if (flow === "saved") renderBatchCategoryChips();
     }
 
-    async function initBatchTab() {
-      await loadCustomCategories();
-    }
+    async function initBatchTab() { await loadCustomCategories(); }
 
-    // BATCH — SCREENSHOT FLOW
+    // BATCH — SCREENSHOT
     async function batchExtractProducts() {
       const file = document.getElementById("batchImageUpload").files[0];
       const status = document.getElementById("batchExtractStatus");
@@ -349,13 +339,14 @@
           { type: "text", text: "Extract the product names from this screenshot. Shorten each name to 2-4 words max, keeping only the essential product identity. Remove brand names, sizes, quantities, and filler words. Return ONLY a JSON array of short clean strings, no explanation, no markdown, no backticks. Example: [\"lip stain\", \"full kit\", \"pink mask\"]" }
         ]}]);
         const products = JSON.parse(text.replace(/```json|```/g, "").trim());
-        batchCaptions = products.map(p => ({
-          product: p,
-          brand: "",
-          caption: fillTemplate(p, "").caption
-        }));
+        status.textContent = `Found ${products.length} products. Generating captions...`;
+        batchCaptions = [];
+        for (const p of products) {
+          const { caption } = await fillTemplate(p, "");
+          batchCaptions.push({ product: p, brand: "", caption });
+        }
         renderBatchCaptions();
-        status.textContent = `Generated ${batchCaptions.length} captions. Review below.`;
+        status.textContent = `Generated ${batchCaptions.length} captions.`;
       } catch(err) {
         status.className = "status error";
         status.textContent = "Error: " + err.message;
@@ -364,7 +355,7 @@
       }
     }
 
-    // BATCH — SAVED PRODUCTS FLOW
+    // BATCH — SAVED PRODUCTS
     async function renderBatchCategoryChips() {
       await loadCustomCategories();
       const allCats = [...presetCategories, ...customCategories];
@@ -412,16 +403,16 @@
       const checkboxes = document.querySelectorAll("#batchSelectableProducts input[type='checkbox']:checked");
       if (checkboxes.length === 0) return;
       batchCaptions = [];
-      checkboxes.forEach(cb => {
+      for (const cb of checkboxes) {
         const product = cb.dataset.product;
         const brand = cb.dataset.brand;
-        const { caption } = fillTemplate(product, brand);
+        const { caption } = await fillTemplate(product, brand);
         batchCaptions.push({ product, brand, caption });
-      });
+      }
       renderBatchCaptions();
     }
 
-    // BATCH — RENDER CAPTIONS
+    // BATCH — RENDER
     function renderBatchCaptions() {
       const list = document.getElementById("batchCaptionList");
       list.innerHTML = "";
@@ -445,7 +436,7 @@
     async function rerollBatchCaption(i) {
       await loadTemplates();
       const { product, brand } = batchCaptions[i];
-      const { caption } = fillTemplate(product, brand);
+      const { caption } = await fillTemplate(product, brand);
       batchCaptions[i].caption = caption;
       document.getElementById(`bcaption_${i}`).textContent = caption;
     }
@@ -456,7 +447,6 @@
       if (batchCaptions.length === 0) { status.textContent = "No captions to send."; return; }
       status.className = "status";
       status.textContent = "Saving...";
-
       const payload = {
         createdAt: new Date().toISOString(),
         count: batchCaptions.length,
@@ -466,8 +456,6 @@
           caption: item.caption
         }))
       };
-
-      // 1. Save to Firebase
       try {
         await db.collection("batches").doc("latest").set(payload);
       } catch(e) {
@@ -475,8 +463,6 @@
         status.textContent = "Firebase save failed: " + e.message;
         return;
       }
-
-      // 2. Save JSON file locally
       try {
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -490,7 +476,6 @@
         status.textContent = "File download failed: " + e.message;
         return;
       }
-
       status.className = "status success";
       status.textContent = "✓ Saved to Firebase + downloaded JSON!";
     }
@@ -595,7 +580,7 @@
         const docId = cb.dataset.docId;
         const doc = await db.collection("savedProducts").doc(docId).get();
         const item = doc.data();
-        const { caption, templateIndex } = fillTemplate(item.product, item.brand, item.lastTemplateIndex);
+        const { caption, templateIndex } = await fillTemplate(item.product, item.brand, item.lastTemplateIndex);
         savedCaptions.push(caption);
         savedCaptionMeta.push({ docId, product: item.product, brand: item.brand, lastTemplateIndex: templateIndex });
         updates.push(db.collection("savedProducts").doc(docId).update({
@@ -659,7 +644,7 @@
     async function rerollSavedCaption() {
       await loadTemplates();
       const meta = savedCaptionMeta[savedCurrentIndex];
-      const { caption, templateIndex } = fillTemplate(meta.product, meta.brand, meta.lastTemplateIndex);
+      const { caption, templateIndex } = await fillTemplate(meta.product, meta.brand, meta.lastTemplateIndex);
       savedCaptions[savedCurrentIndex] = caption;
       savedCaptionMeta[savedCurrentIndex].lastTemplateIndex = templateIndex;
       showSavedCaption();
@@ -806,7 +791,20 @@
       return lines.join("\n");
     }
 
-    function fillTemplate(product, brand, lastTemplateIndex = -1) {
+    async function formatLinesAI(text) {
+      try {
+        const result = await callClaude([{ role: "user", content:
+          `Format this TikTok caption into 3-5 short lines for a text overlay. Each line should be 2-5 words max, breaking at natural phrase boundaries so it reads well visually. Never break a phrase awkwardly mid-thought. Return ONLY the formatted caption with line breaks, no explanation, no punctuation added.
+
+Caption: ${text}`
+        }]);
+        return result.trim();
+      } catch(e) {
+        return formatLines(text);
+      }
+    }
+
+    async function fillTemplate(product, brand, lastTemplateIndex = -1) {
       const { value: template, index: templateIndex } = pick(activeTemplates, lastTemplateIndex);
       let result = template;
       for (const [key, vals] of Object.entries(variations)) {
@@ -816,7 +814,8 @@
       result = result.replaceAll("[brand]", brand || "the brand");
       result = result.replaceAll("[brand/company]", brand || pick(["the brand", "the company"]).value);
       result = result.toLowerCase().replace(/[\[\]\(\)]/g, "");
-      return { caption: formatLines(result), templateIndex };
+      const caption = await formatLinesAI(result);
+      return { caption, templateIndex };
     }
 
     async function generateCaptions() {
@@ -830,7 +829,7 @@
         const brand = document.getElementById(`brand_${i}`).value.trim();
         const category = document.getElementById(`category_${i}`).value;
         if (document.getElementById(`save_${i}`).checked) saves.push(saveProduct(product, brand, category));
-        const { caption } = fillTemplate(product, brand);
+        const { caption } = await fillTemplate(product, brand);
         captions.push(caption);
         captionProducts.push({ product, brand });
         i++;
@@ -854,7 +853,7 @@
     async function rerollCaption() {
       await loadTemplates();
       const { product, brand } = captionProducts[currentIndex];
-      const { caption } = fillTemplate(product, brand);
+      const { caption } = await fillTemplate(product, brand);
       captions[currentIndex] = caption;
       showCaption();
     }
@@ -920,7 +919,6 @@
       setTimeout(() => status.textContent = "", 2000);
     }
 
-    // UTILS
     function toBase64(file) {
       return new Promise((res, rej) => {
         const reader = new FileReader();
@@ -930,7 +928,6 @@
       });
     }
 
-    // INIT
     (async () => {
       currentTheme = localStorage.getItem("theme") || "dark";
       applyTheme();
