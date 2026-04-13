@@ -483,8 +483,9 @@
     // API KEY
     async function loadApiKey() {
       try {
+        const saved = localStorage.getItem("anthropicKey");
+        if (saved) document.getElementById("apiKey").value = saved;
         const doc = await db.collection("config").doc("settings").get();
-        if (doc.exists && doc.data().anthropicKey) document.getElementById("apiKey").value = doc.data().anthropicKey;
         if (doc.exists && doc.data().customCategories) customCategories = doc.data().customCategories;
       } catch(e) {}
       updateExtractBtn();
@@ -495,7 +496,7 @@
       const status = document.getElementById("keyStatus");
       if (!key) { status.textContent = "Enter a key first."; return; }
       try {
-        await db.collection("config").doc("settings").set({ anthropicKey: key }, { merge: true });
+        localStorage.setItem("anthropicKey", key);
         status.className = "status success";
         status.textContent = "Key saved!";
         setTimeout(() => status.textContent = "", 2000);
